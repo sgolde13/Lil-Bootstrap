@@ -1,12 +1,15 @@
-#https://www.cdc.gov/nchs/nhis/2019nhis.htm
-#https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHIS/2019/adult-codebook.pdf
-#https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHIS/2019/adult-summary.pdf
-
-
-
 ####################################################################
 ####################################################################
-## Outline
+## Modeling, Simulation, and Monte Carlo (EN.625.744.8VL2.FA23)
+## Semester Project
+## 
+## "Estimating Model Error when Model Selecting by Backward Deletion"
+## 
+## By: Shelby Golden
+## Final Draft: 12/8/2023
+## 
+## 
+## Script Outline
 ##
 ## 1) Packages and Setup
 ## 2) Backward Deletion
