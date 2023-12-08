@@ -21,8 +21,10 @@
 ## 1) Packages and Setup
 library("dplyr")
 library("stringr")
+library("berryFunctions")
 
 "%!in%" <- function(x,y)!('%in%'(x,y))
+
 
 one.mult <- function(range){
   # randomly generate a selection from a string of values
@@ -61,10 +63,19 @@ tallyVar <- function(repeateResult){
 }
 
 
-a = test_data$y - test_data$y_star
-(1/(length(a) - 1))*sum((a - mean(a))^2)
+checkUnique <- function(data_frame){
+  # checks if the data frame contains at least two different values for lm()
+  # fitting contrasts
+  not_all_unique = any(apply(data_frame, 2, function(x) length(unique(x)) < 2))
+  
+  if(not_all_unique == FALSE){
+    print("Good to go")
+  } else if(not_all_unique == TRUE){
+    print("Re-do the subsetting")
+  }
+}
 
-(1/(length(test_data$y) - 1))*sum((test_data$y - mean(test_data$y))^2)
+
 
 ####################################################################
 ## 2) Backward Deletion
@@ -249,8 +260,7 @@ repeatBackDelete <- function(dataset, method = c("Mallows", "LilBoot", "Conditio
 
 ####################################################################
 ## 4) Simulated Data Model Selection
-# y_star = 3*x_vec$x01 - 4.59*x_vec$x02 + 2.76*x_vec$x03 + x_vec$x04 - x_vec$x07 +
-#          10*x_vec$x20 - 3.37*x_vec$x29 + 2*x_vec$x31 + x_vec$x36
+# y_star = 3*x01 - 4.59*x02 + 2.76*x03 + x04 - x07 + 10*x20 - 3.37*x29 + 2*x31 + x36
 
 fixed_x <- function(samples){
   ideal_model <- NULL
@@ -348,49 +358,84 @@ table(model_Mallows60[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
 table(model_LilBoot60[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
 table(model_CondBoot60[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
 
+sim_data = add_error(result60, 2)
+lm(y ~ x01 + x02 + x03 + x04 + x07 + x20 + x24 + x36, sim_data)
+lm(y ~ x01 + x02 + x03 + x04 + x24 + x29 + x31, sim_data)
+lm(y ~ x02 + x03 + x04 + x05 + x24 + x29 + x31, sim_data)
+
 
 
 result300 = fixed_x(300)
 
 model_Mallows300 <- repeatBackDelete(result300, method = "Mallows",
-                                     threshold = 0.02, replicate = 20)
+                                     threshold = 0.2, replicate = 20)
 model_LilBoot300 <- repeatBackDelete(result300, method = "LilBoot",
-                                     threshold = 0.02, replicate = 20)
-model_CondBoot300 <- repeatBackDelete(result300, method = "ConditionalBoot", 
-                                      threshold = 0.75, replicate = 20)
+                                     threshold = 0.2, replicate = 20)
+model_CondBoot300 <- repeatBackDelete(result300, method = "ConditionalBoot",
+                                      threshold = 7.5, replicate = 20)
+
+
+tallyVar(model_Mallows300)
+tallyVar(model_LilBoot300)
+tallyVar(model_CondBoot300)
+
+table(model_Mallows300[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
+table(model_LilBoot300[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
+table(model_CondBoot300[[1]]) %>% sort(., decreasing = TRUE) %>% .[1:2]
 
 
 
 ####################################################################
 ## 5) Real Data Preparation
-raw_data = read.csv(file.choose())
+# Commented out so that the curated dataset is not regenerated in each run
+
+
+#raw_data = read.csv(file.choose())
+
 
 # remove the columns with 50 or more NA's in the whole array
-less_50_NAs = c(1:534)[apply(raw_data, 2, function(x) sum(is.na(x))) < 50]
-raw_data = raw_data[, less_50_NAs]
+#less_50_NAs = c(1:534)[apply(raw_data, 2, function(x) sum(is.na(x))) < 50]
+#raw_data = raw_data[, less_50_NAs]
 
 
 # select specific variables
-keepVar = c("DIBEV_A", "PREDIB_A", "COPDEV_A", "ARTHEV_A", "DEMENEV_A", 
-            "WEIGHTLBTC_A", "BMICAT_A", "ANXEV_A", "DEPEV_A", "HEIGHTTC_A",
-            "AGEP_A", "RATCAT_A")
+#keepVar = c("DIBEV_A", "PREDIB_A", "COPDEV_A", "ARTHEV_A", "DEMENEV_A", 
+#            "WEIGHTLBTC_A", "BMICAT_A", "ANXEV_A", "DEPEV_A", "HEIGHTTC_A",
+#            "AGEP_A", "RATCAT_A", "SEX_A")
+
 
 # randomly select remaining variables
-randVar = names(raw_data)[names(raw_data) %!in% 
-                          keepVar][sample(1:158, 29, replace = FALSE)]
-
-data <- raw_data[, c(keepVar, randVar)]
-
-dataNames <- data
-names(dataNames) <- c("y", str_c("x", c("01", "02", "03", "04", "05", "06", 
-                      "07", "08", "09", 10:40), sep = ""))
-
-dataNames$y_star <- rep(1, nrow(dataNames))
+#remainingVar = names(raw_data)[names(raw_data) %!in% keepVar & names(raw_data) %!in% "HHX"]
+#randVar = remainingVar[sample(1:length(remainingVar), 28, replace = FALSE)]
 
 
-reorder = c("y", "y_star", str_c("x", c("01", "02", "03", "04", "05", "06", 
-                    "07", "08", "09", 10:40), sep = ""))
-dataNames <- dataNames[, order(match(names(dataNames), reorder))]
+# subset the original dataset to only include these variables
+#data <- raw_data[, c(keepVar, randVar)]
+
+
+# making the first row reflect the dummy variable names necessary for the algorithm
+#data <- insertRows(data, 1, new = c("y", str_c("x", c("01", "02", "03", "04", "05", 
+#                                    "06", "07", "08", "09", 10:40), sep = "")), rcurrent = FALSE)
+
+
+# inserting a dummy variable for the y_star position. The "Real ME" and RSS are based
+# on this value, and so they should be ignored
+#rand_y_star = c()
+#for(i in 1:(nrow(data)-1)){
+#  rand_y_star[i] = one.mult(c(1,2))
+#}
+
+#data$placeHolder <- c("y_star", rand_y_star)
+
+#checkUnique(data)
+
+
+# reorder columns based on the first row's names for clarity
+#reorder = c("y", "y_star", str_c("x", c("01", "02", "03", "04", "05", "06", 
+#                                      "07", "08", "09", 10:40), sep = ""))
+#curated_data <- data[, order(match(data[1,], reorder))]
+
+#write.csv(curated_data, file = file.choose(), row.names = FALSE)
 
 
 
@@ -398,25 +443,44 @@ dataNames <- dataNames[, order(match(names(dataNames), reorder))]
 ## 6) Real Data Model Selection
 # y = DIBEV_A and y_star = random, to be ignored
 
-data60 = dataNames[sample(1:158, 60, replace = FALSE), ]
 
-model_Mallows_real <- repeatBackDelete(data60, method = "Mallows", threshold = 0.02, 5, add_y = FALSE)
-model_LilBoot_real <- repeatBackDelete(data60, method = "LilBoot", threshold = 0.3, 5, add_y = FALSE)
-model_CondBoot_real <- repeatBackDelete(data60, method = "ConditionalBoot", threshold = 0.02, 5, add_y = FALSE)
+# Data importation
+real_data = read.csv(file.choose(), header = TRUE)
+  names(real_data) <- real_data[1, ]
+  real_data <- real_data[-1, ]
+  
+  real_data <- apply(real_data, 2, as.numeric) %>% as.data.frame()
+  
+  
+# Analysis
+data60 = real_data[sample(1:nrow(real_data), 60, replace = FALSE), ]
+checkUnique(data60)
 
-tallyVar(model_Mallows_real)
-tallyVar(model_LilBoot_real)
-tallyVar(model_CondBoot_real)
+
+model_Mallows_real <- repeatBackDelete(data60, method = "Mallows", 
+                                       threshold = 0.2, 1, add_y = FALSE)
+model_LilBoot_real <- repeatBackDelete(data60, method = "LilBoot", 
+                                       threshold = 0.3, 1, add_y = FALSE)
+model_CondBoot_real <- repeatBackDelete(data60, method = "ConditionalBoot", 
+                                        threshold = 0.2, 1, add_y = FALSE)
+
+
+lm(y ~ x01 + x04 + x09 + x13 + x14 + x15 + x17 + x20 + x23 + x24 + x26, data60)
 
 
 
-model_Mallows_realAll <- repeatBackDelete(dataNames, method = "Mallows", threshold = 0.02, 5, add_y = FALSE)
-model_LilBoot_realAll <- repeatBackDelete(dataNames, method = "LilBoot", threshold = 0.3, 5, add_y = FALSE)
-model_CondBoot_realAll <- repeatBackDelete(dataNames, method = "ConditionalBoot", threshold = 0.02, 5, add_y = FALSE)
 
-tallyVar(model_Mallows_realAll)
-tallyVar(model_LilBoot_realAll)
-tallyVar(model_CondBoot_realAll)
+data300 = real_data[sample(1:nrow(real_data), 300, replace = FALSE), ]
+checkUnique(data300)
+
+
+model_Mallows_real300 <- repeatBackDelete(dataNames, method = "Mallows", 
+                                          threshold = 10, 1, add_y = FALSE)
+model_LilBoot_real300 <- repeatBackDelete(dataNames, method = "LilBoot", 
+                                          threshold = 0.05, 1, add_y = FALSE)
+model_CondBoot_real300 <- repeatBackDelete(dataNames, method = "ConditionalBoot", 
+                                           threshold = 0.3, 1, add_y = FALSE)
+
 
 
 
